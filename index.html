@@ -49,6 +49,11 @@
   #exportBtn{padding:6px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-size:12px;cursor:pointer}
   #exportBtn:disabled{opacity:.4;cursor:default}
   .empty{text-align:center;color:var(--muted);padding:60px 0;font-size:14px}
+  .catcards{max-width:960px;margin:14px auto 0;padding:0 16px;display:flex;gap:12px}
+  .catcard{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;cursor:pointer}
+  .catcard.on{border-color:var(--accent);background:var(--accent-soft)}
+  .catcard .n{font-size:22px;font-weight:600;color:var(--text)}
+  .catcard .l{font-size:12px;color:var(--muted);margin-top:2px}
 </style>
 </head>
 <body>
@@ -64,12 +69,18 @@
 <div class="toolbar" style="margin-top:14px">
   <button id="exportBtn" onclick="exportReviews()" disabled>导出评价 (0)</button>
 </div>
+<div class="catcards" id="catcards"></div>
 <main id="list"><div class="empty">正在加载 manifest.json …</div></main>
 
 <script>
 const CAT_CLS = {"AI/大模型":"cat-ai","后端/基础设施":"cat-infra","硬件/芯片":"cat-hw"};
 let ALL = [], MANIFEST = null, ACTIVE_TAGS = new Set(), QUERY = "";
+let CAT_FILTER = "待人工审核";
 const REVIEWS = JSON.parse(localStorage.getItem("ti_reviews") || "{}");
+
+function stateOf(it){
+  return (REVIEWS[it.id]||{}).state === "已人工审核" ? "已人工审核" : "待人工审核";
+}
 
 function refreshExportBtn(){
   const n = Object.keys(REVIEWS).length;
@@ -119,18 +130,30 @@ function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt
 function render(){
   const list = document.getElementById("list");
   let items = ALL;
+  if (CAT_FILTER) items = items.filter(i => stateOf(i) === CAT_FILTER);
   if (ACTIVE_TAGS.size) items = items.filter(i => (i.tags||[]).some(t=>ACTIVE_TAGS.has(t)));
   if (QUERY) {
     const q = QUERY.toLowerCase();
     items = items.filter(i => (i.title+i.summary+(i.tags||[]).join()).toLowerCase().includes(q));
   }
   if (!items.length){ list.innerHTML = `<div class="empty">没有匹配的线索</div>`; return; }
-  const byDate = {};
-  for (const it of items) (byDate[it.date?.slice(0,10) || "未知日期"] ||= []).push(it);
-  const dates = Object.keys(byDate).sort().reverse();
-  list.innerHTML = dates.map(d =>
-    `<div class="datehead">${d} · ${byDate[d].length} 条</div>` + byDate[d].map(card).join("")
-  ).join("");
+  list.innerHTML = items.map(card).join("");
+}
+
+function setCat(c){
+  CAT_FILTER = (CAT_FILTER === c) ? "" : c;
+  renderCatcards(); render();
+}
+function renderCatcards(){
+  const pend = ALL.filter(i => stateOf(i) === "待人工审核").length;
+  const done = ALL.length - pend;
+  document.getElementById("catcards").innerHTML = `
+    <div class="catcard ${CAT_FILTER==="待人工审核"?"on":""}" onclick="setCat('待人工审核')">
+      <div class="n">${pend}</div><div class="l">待人工审核</div>
+    </div>
+    <div class="catcard ${CAT_FILTER==="已人工审核"?"on":""}" onclick="setCat('已人工审核')">
+      <div class="n">${done}</div><div class="l">已人工审核</div>
+    </div>`;
 }
 
 function updReview(id, field, value){
@@ -138,7 +161,7 @@ function updReview(id, field, value){
   REVIEWS[id][field] = value;
   REVIEWS[id].reviewed_at = new Date().toISOString();
   localStorage.setItem("ti_reviews", JSON.stringify(REVIEWS));
-  refreshExportBtn(); render();
+  refreshExportBtn(); renderCatcards(); render();
 }
 function exportReviews(){
   const clean = Object.values(REVIEWS);
@@ -171,7 +194,7 @@ document.getElementById("q").addEventListener("input", e=>{ QUERY=e.target.value
       `<div class="empty">未找到 leads/manifest.json —— 请先运行数据生成步骤，或通过本地 HTTP 服务打开本页（如 <code>npx serve</code>）</div>`;
     return;
   }
-  refreshExportBtn(); renderTagbar(); render();
+  refreshExportBtn(); renderTagbar(); renderCatcards(); render();
 })();
 </script>
 </body>
