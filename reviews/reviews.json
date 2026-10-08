@@ -1,0 +1,16 @@
+[
+  {
+    "lead_id": "2026-10-08#hn-openai-math-progress",
+    "state": "待人工审核",
+    "valuable": "待确认",
+    "note": "test",
+    "reviewed_at": "2026-10-08T19:26:03.620Z"
+  },
+  {
+    "lead_id": "2026-10-08#hn-claude-haiku-5-5",
+    "state": "已人工审核",
+    "valuable": "是",
+    "note": "",
+    "reviewed_at": "2026-10-08T19:26:38.626Z"
+  }
+]
