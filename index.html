@@ -54,11 +54,16 @@
   #exportBtn{padding:6px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-size:12px;cursor:pointer}
   #exportBtn:disabled{opacity:.4;cursor:default}
   .empty{text-align:center;color:var(--muted);padding:60px 0;font-size:14px}
-  .catcards{max-width:960px;margin:14px auto 0;padding:0 16px;display:flex;gap:12px}
-  .catcard{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;cursor:pointer}
-  .catcard.on{border-color:var(--accent);background:var(--accent-soft)}
-  .catcard .n{font-size:22px;font-weight:600;color:var(--text)}
-  .catcard .l{font-size:12px;color:var(--muted);margin-top:2px}
+  .bigcard{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px}
+  .bhead{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .bhead h2{font-size:14px;font-weight:500;color:var(--text)}
+  .bcount{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:1px 10px;font-size:12px}
+  .bhint{font-size:12px;color:var(--muted);margin-left:auto}
+  .leadgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+  .leadgrid .card{margin-bottom:0;padding:10px 12px}
+  .leadgrid .card .t{font-size:13px}
+  .leadgrid .card .s{font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .leadgrid .card .review{margin-top:6px}
 </style>
 </head>
 <body>
@@ -77,13 +82,11 @@
   <button id="syncBtn" onclick="pushReviews(true)">同步到 GitHub</button>
   <button id="exportBtn" onclick="exportReviews()" disabled>导出评价 (0)</button>
 </div>
-<div class="catcards" id="catcards"></div>
 <main id="list"><div class="empty">正在加载 manifest.json …</div></main>
 
 <script>
 const CAT_CLS = {"AI/大模型":"cat-ai","后端/基础设施":"cat-infra","硬件/芯片":"cat-hw"};
 let ALL = [], MANIFEST = null, ACTIVE_TAGS = new Set(), QUERY = "";
-let CAT_FILTER = "待人工审核";
 const REVIEWS = JSON.parse(localStorage.getItem("ti_reviews") || "{}");
 
 function stateOf(it){
@@ -133,7 +136,7 @@ async function pullReviews(){
       }
       if (changed) {
         localStorage.setItem("ti_reviews", JSON.stringify(REVIEWS));
-        refreshExportBtn(); renderCatcards(); render();
+        refreshExportBtn(); render();
       }
       setSync(`✔ 云端 ${remote.length} 条已合并`);
     } else if (r.status === 404) { SYNC.sha = null; setSync("云端暂无评价文件，首次同步将创建"); }
@@ -163,7 +166,7 @@ function saveNote(id){
   REVIEWS[id].note = el.value;
   REVIEWS[id].reviewed_at = new Date().toISOString();
   localStorage.setItem("ti_reviews", JSON.stringify(REVIEWS));
-  refreshExportBtn(); renderCatcards(); render();
+  refreshExportBtn(); render();
   pushReviews(true);
 }
 function scheduleSync(){
@@ -228,30 +231,22 @@ function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt
 function render(){
   const list = document.getElementById("list");
   let items = ALL;
-  if (CAT_FILTER) items = items.filter(i => stateOf(i) === CAT_FILTER);
   if (ACTIVE_TAGS.size) items = items.filter(i => (i.tags||[]).some(t=>ACTIVE_TAGS.has(t)));
   if (QUERY) {
     const q = QUERY.toLowerCase();
     items = items.filter(i => (i.title+i.summary+(i.tags||[]).join()).toLowerCase().includes(q));
   }
-  if (!items.length){ list.innerHTML = `<div class="empty">没有匹配的线索</div>`; return; }
-  list.innerHTML = items.map(card).join("");
-}
-
-function setCat(c){
-  CAT_FILTER = (CAT_FILTER === c) ? "" : c;
-  renderCatcards(); render();
-}
-function renderCatcards(){
-  const pend = ALL.filter(i => stateOf(i) === "待人工审核").length;
-  const done = ALL.length - pend;
-  document.getElementById("catcards").innerHTML = `
-    <div class="catcard ${CAT_FILTER==="待人工审核"?"on":""}" onclick="setCat('待人工审核')">
-      <div class="n">${pend}</div><div class="l">待人工审核</div>
-    </div>
-    <div class="catcard ${CAT_FILTER==="已人工审核"?"on":""}" onclick="setCat('已人工审核')">
-      <div class="n">${done}</div><div class="l">已人工审核</div>
+  const pend = items.filter(i => stateOf(i) === "待人工审核");
+  const done = items.filter(i => stateOf(i) === "已人工审核");
+  const sec = (title, arr) => `
+    <div class="bigcard">
+      <div class="bhead">
+        <h2>${title}</h2><span class="bcount">${arr.length}</span>
+        ${arr.length?"":`<span class="bhint">暂无线索</span>`}
+      </div>
+      ${arr.length?`<div class="leadgrid">${arr.map(card).join("")}</div>`:""}
     </div>`;
+  list.innerHTML = sec("待人工审核", pend) + sec("已人工审核", done);
 }
 
 function updReview(id, field, value){
@@ -259,7 +254,7 @@ function updReview(id, field, value){
   REVIEWS[id][field] = value;
   REVIEWS[id].reviewed_at = new Date().toISOString();
   localStorage.setItem("ti_reviews", JSON.stringify(REVIEWS));
-  refreshExportBtn(); renderCatcards(); render();
+  refreshExportBtn(); render();
   scheduleSync();
 }
 function exportReviews(){
@@ -293,7 +288,7 @@ document.getElementById("q").addEventListener("input", e=>{ QUERY=e.target.value
       `<div class="empty">未找到 leads/manifest.json —— 请先运行数据生成步骤，或通过本地 HTTP 服务打开本页（如 <code>npx serve</code>）</div>`;
     return;
   }
-  refreshExportBtn(); renderTagbar(); renderCatcards(); render();
+  refreshExportBtn(); renderTagbar(); render();
   if (TOKEN) { document.getElementById("tokenInput").value = TOKEN; pullReviews(); }
 })();
 </script>
