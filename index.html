@@ -45,7 +45,9 @@
   .rbtn.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
   .rnote{flex:1;min-width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px}
   .mark{font-size:11px;color:var(--accent)}
-  .toolbar{max-width:960px;margin:0 auto;padding:0 16px;display:flex;justify-content:flex-end}
+  .toolbar{max-width:960px;margin:0 auto;padding:0 16px;display:flex;gap:10px;align-items:center;justify-content:flex-end}
+  #tokenInput{max-width:220px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px}
+  #syncStat{font-size:11px;color:var(--muted);margin-right:auto}
   #exportBtn{padding:6px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-size:12px;cursor:pointer}
   #exportBtn:disabled{opacity:.4;cursor:default}
   .empty{text-align:center;color:var(--muted);padding:60px 0;font-size:14px}
@@ -67,6 +69,9 @@
   </div>
 </header>
 <div class="toolbar" style="margin-top:14px">
+  <span id="syncStat"></span>
+  <input type="password" id="tokenInput" placeholder="GitHub PAT（评价写回用）" onchange="saveToken(this.value)">
+  <button id="syncBtn" onclick="pushReviews(true)">同步到 GitHub</button>
   <button id="exportBtn" onclick="exportReviews()" disabled>导出评价 (0)</button>
 </div>
 <div class="catcards" id="catcards"></div>
@@ -80,6 +85,78 @@ const REVIEWS = JSON.parse(localStorage.getItem("ti_reviews") || "{}");
 
 function stateOf(it){
   return (REVIEWS[it.id]||{}).state === "已人工审核" ? "已人工审核" : "待人工审核";
+}
+
+// ---------- GitHub sync (Contents API, reviews/reviews.json) ----------
+const REPO = "zzllulu2026/tech_insight";
+let TOKEN = localStorage.getItem("ti_token") || "";
+const SYNC = { sha: null };
+let syncTimer = null;
+
+function setSync(t){ document.getElementById("syncStat").textContent = t; }
+function saveToken(v){
+  TOKEN = v.trim();
+  localStorage.setItem("ti_token", TOKEN);
+  if (TOKEN) pullReviews(); else setSync("");
+}
+function b64ToUtf8(b64){
+  const bin = atob(b64.replace(/\s/g,""));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+function utf8ToB64(s){
+  const bytes = new TextEncoder().encode(s);
+  let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+async function ghFetch(path, opts={}){
+  const r = await fetch(`https://api.github.com/repos/${REPO}${path}`, {
+    ...opts,
+    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${TOKEN}`, ...(opts.headers||{}) }
+  });
+  return r;
+}
+async function pullReviews(){
+  if (!TOKEN) return;
+  setSync("拉取云端评价…");
+  try {
+    const r = await ghFetch("/contents/reviews/reviews.json");
+    if (r.status === 200) {
+      const d = await r.json(); SYNC.sha = d.sha;
+      const remote = JSON.parse(b64ToUtf8(d.content));
+      let changed = false;
+      for (const rv of remote) {
+        const cur = REVIEWS[rv.lead_id];
+        if (!cur || new Date(rv.reviewed_at||0) > new Date(cur.reviewed_at||0)) { REVIEWS[rv.lead_id] = rv; changed = true; }
+      }
+      if (changed) {
+        localStorage.setItem("ti_reviews", JSON.stringify(REVIEWS));
+        refreshExportBtn(); renderCatcards(); render();
+      }
+      setSync(`✔ 云端 ${remote.length} 条已合并`);
+    } else if (r.status === 404) { SYNC.sha = null; setSync("云端暂无评价文件，首次同步将创建"); }
+    else throw new Error("HTTP " + r.status);
+  } catch (e) { setSync("✕ 拉取失败: " + e.message); }
+}
+async function pushReviews(manual){
+  if (!TOKEN) { if (manual) setSync("请先在右侧填入 GitHub PAT"); return; }
+  setSync("同步中…");
+  try {
+    const body = { message: "chore: sync review data", content: utf8ToB64(JSON.stringify(Object.values(REVIEWS), null, 2)) };
+    if (SYNC.sha) body.sha = SYNC.sha;
+    const r = await ghFetch("/contents/reviews/reviews.json", { method: "PUT", body: JSON.stringify(body) });
+    if (r.ok) {
+      const d = await r.json(); SYNC.sha = d.content.sha;
+      setSync(`✔ 已同步 ${Object.keys(REVIEWS).length} 条 · ${new Date().toLocaleTimeString()}`);
+    } else {
+      const e = await r.json().catch(() => ({}));
+      throw new Error(e.message || ("HTTP " + r.status));
+    }
+  } catch (e) { setSync("✕ 同步失败: " + e.message); }
+}
+function scheduleSync(){
+  if (!TOKEN) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => pushReviews(false), 2500);
 }
 
 function refreshExportBtn(){
@@ -162,6 +239,7 @@ function updReview(id, field, value){
   REVIEWS[id].reviewed_at = new Date().toISOString();
   localStorage.setItem("ti_reviews", JSON.stringify(REVIEWS));
   refreshExportBtn(); renderCatcards(); render();
+  scheduleSync();
 }
 function exportReviews(){
   const clean = Object.values(REVIEWS);
@@ -195,6 +273,7 @@ document.getElementById("q").addEventListener("input", e=>{ QUERY=e.target.value
     return;
   }
   refreshExportBtn(); renderTagbar(); renderCatcards(); render();
+  if (TOKEN) { document.getElementById("tokenInput").value = TOKEN; pullReviews(); }
 })();
 </script>
 </body>
