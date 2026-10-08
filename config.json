@@ -1,0 +1,180 @@
+{
+  "outputDir": "out",
+  "maxItemsPerSource": 25,
+  "sources": [
+    {
+      "id": "hn",
+      "name": "Hacker News",
+      "type": "hn",
+      "lang": "en",
+      "group": "community",
+      "url": "https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=25"
+    },
+    {
+      "id": "github",
+      "name": "GitHub Trending",
+      "type": "github",
+      "lang": "en",
+      "group": "community",
+      "url": "https://api.github.com/search/repositories?q=created:%3E{YESTERDAY}&sort=stars&order=desc&per_page=20"
+    },
+    {
+      "id": "hf-papers",
+      "name": "Hugging Face Daily Papers",
+      "type": "json",
+      "lang": "en",
+      "group": "paper",
+      "url": "https://huggingface.co/api/daily_papers",
+      "path": "$[*].paper",
+      "map": {
+        "id": "id",
+        "title": "title",
+        "summary": "summary",
+        "url": "https://huggingface.co/papers/{id}",
+        "published": "publishedAt",
+        "scoreField": "paper.upvotes"
+      }
+    },
+    {
+      "id": "arxiv-ai",
+      "name": "arXiv AI/ML",
+      "type": "atom",
+      "lang": "en",
+      "group": "paper",
+      "url": "http://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.CL+OR+cat:cs.LG&sortBy=submittedDate&sortOrder=descending&max_results=20"
+    },
+    {
+      "id": "arxiv-sys",
+      "name": "arXiv Systems",
+      "type": "atom",
+      "lang": "en",
+      "group": "paper",
+      "url": "http://export.arxiv.org/api/query?search_query=cat:cs.DC+OR+cat:cs.OS+OR+cat:cs.AR&sortBy=submittedDate&sortOrder=descending&max_results=15"
+    },
+    {
+      "id": "reddit-ml",
+      "name": "Reddit r/MachineLearning",
+      "type": "rss",
+      "lang": "en",
+      "group": "community",
+      "url": "https://www.reddit.com/r/MachineLearning/.rss"
+    },
+    {
+      "id": "reddit-prog",
+      "name": "Reddit r/programming",
+      "type": "rss",
+      "lang": "en",
+      "group": "community",
+      "url": "https://www.reddit.com/r/programming/.rss"
+    },
+    {
+      "id": "lobsters",
+      "name": "Lobsters",
+      "type": "rss",
+      "lang": "en",
+      "group": "community",
+      "url": "https://lobste.rs/rss"
+    },
+    {
+      "id": "techcrunch",
+      "name": "TechCrunch",
+      "type": "rss",
+      "lang": "en",
+      "group": "company",
+      "url": "https://techcrunch.com/feed/"
+    },
+    {
+      "id": "arstechnica",
+      "name": "Ars Technica",
+      "type": "rss",
+      "lang": "en",
+      "group": "company",
+      "url": "https://feeds.arstechnica.com/arstechnica/index"
+    },
+    {
+      "id": "mittr",
+      "name": "MIT Technology Review",
+      "type": "rss",
+      "lang": "en",
+      "group": "company",
+      "url": "https://www.technologyreview.com/feed/"
+    },
+    {
+      "id": "venturebeat-ai",
+      "name": "VentureBeat AI",
+      "type": "rss",
+      "lang": "en",
+      "group": "company",
+      "url": "https://venturebeat.com/category/ai/feed/"
+    },
+    {
+      "id": "ieee",
+      "name": "IEEE Spectrum",
+      "type": "rss",
+      "lang": "en",
+      "group": "hardware",
+      "url": "https://spectrum.ieee.org/feeds/topic/computing.rss"
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI Blog",
+      "type": "rss",
+      "lang": "en",
+      "group": "company",
+      "url": "https://openai.com/news/rss.xml"
+    },
+    {
+      "id": "google-ai",
+      "name": "Google Research Blog",
+      "type": "rss",
+      "lang": "en",
+      "group": "company",
+      "url": "https://research.google/blog/rss/"
+    },
+    {
+      "id": "hf-blog",
+      "name": "Hugging Face Blog",
+      "type": "rss",
+      "lang": "en",
+      "group": "company",
+      "url": "https://huggingface.co/blog/feed.xml"
+    },
+    {
+      "id": "jiqizhixin",
+      "name": "机器之心",
+      "type": "rss",
+      "lang": "zh",
+      "group": "company",
+      "url": "https://www.jiqizhixin.com/rss"
+    },
+    {
+      "id": "36kr",
+      "name": "36氪",
+      "type": "rss",
+      "lang": "zh",
+      "group": "company",
+      "url": "https://36kr.com/feed"
+    },
+    {
+      "id": "solidot",
+      "name": "Solidot",
+      "type": "rss",
+      "lang": "zh",
+      "group": "community",
+      "url": "https://www.solidot.org/index.rss"
+    }
+  ],
+  "domains": {
+    "AI/大模型": ["ai", "llm", "gpt", "language model", "transformer", "neural", "agent", "rag", "inference", "training", "fine-tun", "embedding", "diffusion", "multimodal", "openai", "anthropic", "claude", "gemini", "llama", "deepseek", "machine learning", "deep learning", "prompt", "chatbot", "人工智能", "大模型", "智能体", "训练", "推理"],
+    "后端/基础设施": ["kubernetes", "k8s", "docker", "container", "database", "distributed", "cloud", "server", "backend", "api", "microservice", "devops", "linux", "performance", "scal", "rust", "golang", "compiler", "runtime", "cache", "storage", "计算", "数据库", "云原生", "架构"],
+    "硬件/芯片": ["chip", "gpu", "cpu", "semiconductor", "silicon", "tsmc", "nvidia", "hardware", "robot", "quantum", "embedded", "risc-v", "asic", "edge", "sensor", "芯片", "半导体", "机器人", "硬件", "量子"]
+  },
+  "scoring": {
+    "hnPointsWeight": 0.02,
+    "githubStarsWeight": 0.01,
+    "upvotesWeight": 0.1,
+    "domainKeywordBonus": 2,
+    "recencyHoursDecay": 0.05,
+    "maxScore": 10
+  }
+}

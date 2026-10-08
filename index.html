@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技术洞察 · Tech Insight</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --text:#1a1d21; --muted:#6b7280; --border:#e5e7eb;
+    --accent:#2563eb; --accent-soft:#eff6ff; --tag-ai:#dbeafe; --tag-infra:#d1fae5; --tag-hw:#fef3c7; --tag-other:#f3f4f6;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --bg:#0f1115; --card:#171a20; --text:#e5e7eb; --muted:#9ca3af; --border:#2a2e36;
+    --accent:#60a5fa; --accent-soft:#1e293b; --tag-ai:#1e3a5f; --tag-infra:#134e4a; --tag-hw:#78350f; --tag-other:#26292f;
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+  header{position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--border);padding:14px 20px}
+  .hwrap{max-width:960px;margin:0 auto;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  h1{font-size:18px;font-weight:600;margin-right:auto}
+  h1 span{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
+  input[type=search]{flex:1;min-width:180px;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px}
+  .tags{display:flex;gap:8px;flex-wrap:wrap}
+  .tagbtn{padding:4px 12px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;cursor:pointer}
+  .tagbtn.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+  main{max-width:960px;margin:20px auto;padding:0 16px 60px}
+  .datehead{margin:26px 0 12px;font-size:15px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:12px}
+  .datehead::after{content:"";flex:1;height:1px;background:var(--border)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+  .card .t{font-size:14px;font-weight:600}
+  .card .t a{color:var(--text);text-decoration:none}
+  .card .t a:hover{color:var(--accent)}
+  .card .s{font-size:13px;color:var(--muted);margin:6px 0 8px}
+  .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--muted)}
+  .pill{padding:2px 9px;border-radius:999px;font-size:11px}
+  .src{background:var(--accent-soft);color:var(--accent)}
+  .cat-ai{background:var(--tag-ai)}
+  .cat-infra{background:var(--tag-infra)}
+  .cat-hw{background:var(--tag-hw)}
+  .cat-other{background:var(--tag-other)}
+  .score{margin-left:auto}
+  .review{margin-top:8px;display:none;gap:6px;align-items:center;flex-wrap:wrap}
+  .card.rv .review{display:flex}
+  .rbtn{padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;cursor:pointer}
+  .rbtn.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+  .rnote{flex:1;min-width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px}
+  .mark{font-size:11px;color:var(--accent)}
+  .toolbar{max-width:960px;margin:0 auto;padding:0 16px;display:flex;justify-content:flex-end}
+  #exportBtn{padding:6px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-size:12px;cursor:pointer}
+  #exportBtn:disabled{opacity:.4;cursor:default}
+  .empty{text-align:center;color:var(--muted);padding:60px 0;font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <h1>技术洞察 <span>Tech Insight Daily</span></h1>
+    <input type="search" id="q" placeholder="搜索标题 / 摘要 / 标签…">
+  </div>
+  <div class="hwrap" style="margin-top:10px">
+    <div class="tags" id="tagbar"></div>
+  </div>
+</header>
+<div class="toolbar" style="margin-top:14px">
+  <button id="exportBtn" onclick="exportReviews()" disabled>导出评价 (0)</button>
+</div>
+<main id="list"><div class="empty">正在加载 manifest.json …</div></main>
+
+<script>
+const CAT_CLS = {"AI/大模型":"cat-ai","后端/基础设施":"cat-infra","硬件/芯片":"cat-hw"};
+let ALL = [], MANIFEST = null, ACTIVE_TAGS = new Set(), QUERY = "";
+const REVIEWS = JSON.parse(localStorage.getItem("ti_reviews") || "{}");
+
+function refreshExportBtn(){
+  const n = Object.keys(REVIEWS).length;
+  const b = document.getElementById("exportBtn");
+  b.textContent = `导出评价 (${n})`;
+  b.disabled = n === 0;
+}
+
+function reviewUI(it){
+  const r = REVIEWS[it.id] || {};
+  const btn = (v,label) => `<button class="rbtn ${r.rating===v?'on':''}" onclick="setReview('${it.id}',${v},'${encodeURIComponent(r.note||"")}')">${label}</button>`;
+  return `<div class="review">
+    ${btn(5,"⭐ 有价值")}${btn(3,"👀 已了解")}${btn(1,"✕ 不重要")}
+    <input class="rnote" placeholder="评语（可选）" value="${(r.note||"").replace(/"/g,"&quot;")}"
+      onchange="setNote('${it.id}', this.value)">
+    ${r.rating?`<span class="mark">已评价：${r.status||""}</span>`:""}
+  </div>`;
+}
+
+function card(it){
+  const cats = (it.tags||["其他"]).map(c=>{
+    const cls = CAT_CLS[c]||"cat-other";
+    return `<span class="pill ${cls}" onclick="toggleTag('${c}')" style="cursor:pointer">${c}</span>`;
+  }).join("");
+  const rv = REVIEWS[it.id];
+  return `<div class="card ${rv?'rv':''}">
+    <div class="t"><a href="${it.source}" target="_blank" rel="noopener">${esc(it.title)}</a> ${rv?`<span class="mark">${rv.status}</span>`:""}</div>
+    <div class="s">${esc(it.summary||"")}</div>
+    <div class="meta">
+      <span class="pill src">${esc(it.origin)}</span>${cats}
+      <span>${(it.date||"").slice(0,10)}</span>
+      <span class="score">★ ${it.score??""}</span>
+    </div>
+    ${reviewUI(it)}
+  </div>`;
+}
+
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+function render(){
+  const list = document.getElementById("list");
+  let items = ALL;
+  if (ACTIVE_TAGS.size) items = items.filter(i => (i.tags||[]).some(t=>ACTIVE_TAGS.has(t)));
+  if (QUERY) {
+    const q = QUERY.toLowerCase();
+    items = items.filter(i => (i.title+i.summary+(i.tags||[]).join()).toLowerCase().includes(q));
+  }
+  if (!items.length){ list.innerHTML = `<div class="empty">没有匹配的线索</div>`; return; }
+  const byDate = {};
+  for (const it of items) (byDate[it.date?.slice(0,10) || "未知日期"] ||= []).push(it);
+  const dates = Object.keys(byDate).sort().reverse();
+  list.innerHTML = dates.map(d =>
+    `<div class="datehead">${d} · ${byDate[d].length} 条</div>` + byDate[d].map(card).join("")
+  ).join("");
+}
+
+function setReview(id, rating, noteEnc){
+  const status = {5:"⭐ 有价值",3:"👀 已了解",1:"✕ 不重要"}[rating];
+  REVIEWS[id] = { lead_id:id, rating, status, note: decodeURIComponent(noteEnc||""), reviewed_at:new Date().toISOString() };
+  if (REVIEWS[id].rating === (REVIEWS[id]._prev)) delete REVIEWS[id];
+  else REVIEWS[id]._prev = REVIEWS[id].rating;
+  localStorage.setItem("ti_reviews", JSON.stringify(REVIEWS));
+  refreshExportBtn(); render();
+}
+function setNote(id, note){
+  if (!REVIEWS[id]) REVIEWS[id] = { lead_id:id, reviewed_at:new Date().toISOString() };
+  REVIEWS[id].note = note;
+  localStorage.setItem("ti_reviews", JSON.stringify(REVIEWS));
+  refreshExportBtn();
+}
+function exportReviews(){
+  const clean = Object.entries(REVIEWS).map(([k,v])=>{const {_prev,...r}=v;return r;});
+  const blob = new Blob([JSON.stringify(clean,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `reviews-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function toggleTag(t){
+  ACTIVE_TAGS.has(t) ? ACTIVE_TAGS.delete(t) : ACTIVE_TAGS.add(t);
+  renderTagbar(); render();
+}
+function renderTagbar(){
+  const counts = {};
+  for (const it of ALL) for (const t of (it.tags||[])) counts[t]=(counts[t]||0)+1;
+  document.getElementById("tagbar").innerHTML = Object.entries(counts)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([t,c])=>`<button class="tagbtn ${ACTIVE_TAGS.has(t)?'on':''}" onclick="toggleTag('${t}')">${t} ${c}</button>`).join("");
+}
+document.getElementById("q").addEventListener("input", e=>{ QUERY=e.target.value.trim(); render(); });
+
+(async function init(){
+  try{
+    MANIFEST = await (await fetch("leads/manifest.json")).json();
+    ALL = MANIFEST.leads || [];
+  }catch(e){
+    document.getElementById("list").innerHTML =
+      `<div class="empty">未找到 leads/manifest.json —— 请先运行数据生成步骤，或通过本地 HTTP 服务打开本页（如 <code>npx serve</code>）</div>`;
+    return;
+  }
+  refreshExportBtn(); renderTagbar(); render();
+})();
+</script>
+</body>
+</html>
