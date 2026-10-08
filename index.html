@@ -39,8 +39,8 @@
   .cat-hw{background:var(--tag-hw)}
   .cat-other{background:var(--tag-other)}
   .score{margin-left:auto}
-  .review{margin-top:8px;display:none;gap:6px;align-items:center;flex-wrap:wrap}
-  .card.rv .review{display:flex}
+  .review{margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .rsel{padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px}
   .rbtn{padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;cursor:pointer}
   .rbtn.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
   .rnote{flex:1;min-width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px}
@@ -80,12 +80,19 @@ function refreshExportBtn(){
 
 function reviewUI(it){
   const r = REVIEWS[it.id] || {};
-  const btn = (v,label) => `<button class="rbtn ${r.rating===v?'on':''}" onclick="setReview('${it.id}',${v},'${encodeURIComponent(r.note||"")}')">${label}</button>`;
+  const state = r.state || "待人工审核";
+  const val = r.valuable || "待确认";
+  const opt = (cur,v) => `<option ${cur===v?"selected":""}>${v}</option>`;
   return `<div class="review">
-    ${btn(5,"⭐ 有价值")}${btn(3,"👀 已了解")}${btn(1,"✕ 不重要")}
-    <input class="rnote" placeholder="评语（可选）" value="${(r.note||"").replace(/"/g,"&quot;")}"
-      onchange="setNote('${it.id}', this.value)">
-    ${r.rating?`<span class="mark">已评价：${r.status||""}</span>`:""}
+    <select class="rsel" onchange="updReview('${it.id}','state',this.value)" title="审核状态">
+      ${opt(state,"待人工审核")}${opt(state,"已人工审核")}
+    </select>
+    <select class="rsel" onchange="updReview('${it.id}','valuable',this.value)" title="是否对云核有价值">
+      ${opt(val,"待确认")}${opt(val,"是")}${opt(val,"否")}
+    </select>
+    <input class="rnote" placeholder="评价（文字输入）" value="${esc(r.note||"")}"
+      onchange="updReview('${it.id}','note',this.value)">
+    ${state==="已人工审核"?`<span class="mark">✔ 已审</span>`:""}
   </div>`;
 }
 
@@ -96,7 +103,7 @@ function card(it){
   }).join("");
   const rv = REVIEWS[it.id];
   return `<div class="card ${rv?'rv':''}">
-    <div class="t"><a href="${it.source}" target="_blank" rel="noopener">${esc(it.title)}</a> ${rv?`<span class="mark">${rv.status}</span>`:""}</div>
+    <div class="t"><a href="${it.source}" target="_blank" rel="noopener">${esc(it.title)}</a> ${rv&&rv.valuable==="是"?'<span class="pill src">云核价值 ✓</span>':""}</div>
     <div class="s">${esc(it.summary||"")}</div>
     <div class="meta">
       <span class="pill src">${esc(it.origin)}</span>${cats}
@@ -126,22 +133,15 @@ function render(){
   ).join("");
 }
 
-function setReview(id, rating, noteEnc){
-  const status = {5:"⭐ 有价值",3:"👀 已了解",1:"✕ 不重要"}[rating];
-  REVIEWS[id] = { lead_id:id, rating, status, note: decodeURIComponent(noteEnc||""), reviewed_at:new Date().toISOString() };
-  if (REVIEWS[id].rating === (REVIEWS[id]._prev)) delete REVIEWS[id];
-  else REVIEWS[id]._prev = REVIEWS[id].rating;
+function updReview(id, field, value){
+  if (!REVIEWS[id]) REVIEWS[id] = { lead_id:id, state:"待人工审核", valuable:"待确认", note:"" };
+  REVIEWS[id][field] = value;
+  REVIEWS[id].reviewed_at = new Date().toISOString();
   localStorage.setItem("ti_reviews", JSON.stringify(REVIEWS));
   refreshExportBtn(); render();
 }
-function setNote(id, note){
-  if (!REVIEWS[id]) REVIEWS[id] = { lead_id:id, reviewed_at:new Date().toISOString() };
-  REVIEWS[id].note = note;
-  localStorage.setItem("ti_reviews", JSON.stringify(REVIEWS));
-  refreshExportBtn();
-}
 function exportReviews(){
-  const clean = Object.entries(REVIEWS).map(([k,v])=>{const {_prev,...r}=v;return r;});
+  const clean = Object.values(REVIEWS);
   const blob = new Blob([JSON.stringify(clean,null,2)],{type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
