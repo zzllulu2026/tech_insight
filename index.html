@@ -31,6 +31,8 @@
   .card .t a{color:var(--text);text-decoration:none}
   .card .t a:hover{color:var(--accent)}
   .card .s{font-size:13px;color:var(--muted);margin:6px 0 8px}
+  .detail p{font-size:12px;color:var(--muted);margin:3px 0;line-height:1.55}
+  .detail b{color:var(--text);font-weight:500;margin-right:4px}
   .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--muted)}
   .pill{padding:2px 9px;border-radius:999px;font-size:11px}
   .src{background:var(--accent-soft);color:var(--accent)}
@@ -209,6 +211,12 @@ function reviewUI(it){
   </div>`;
 }
 
+function detail(it){
+  const row = (l,v) => v ? `<p><b>${l}</b>${esc(v)}</p>` : "";
+  const rows = row("背景",it.background) + row("方案",it.approach) + row("效果",it.effect) + row("场景",it.application);
+  return rows ? `<div class="detail">${rows}</div>` : "";
+}
+
 function card(it){
   const cats = (it.tags||["其他"]).map(c=>{
     const cls = CAT_CLS[c]||"cat-other";
@@ -218,6 +226,7 @@ function card(it){
   return `<div class="card ${rv?'rv':''}">
     <div class="t"><a href="${it.source}" target="_blank" rel="noopener">${esc(it.title)}</a> ${rv&&rv.valuable==="是"?'<span class="pill src">云核价值 ✓</span>':""}</div>
     <div class="s">${esc(it.summary||"")}</div>
+    ${detail(it)}
     <div class="meta">
       <span class="pill src">${esc(it.origin)}</span>${cats}
       <span>${(it.date||"").slice(0,10)}</span>
