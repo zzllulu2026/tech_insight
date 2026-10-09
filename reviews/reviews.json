@@ -26,5 +26,12 @@
     "valuable": "待确认",
     "note": "",
     "reviewed_at": "2026-10-08T20:56:01.222Z"
+  },
+  {
+    "lead_id": "2026-10-09#hn-whistle-stt",
+    "state": "已人工审核",
+    "valuable": "是",
+    "note": "",
+    "reviewed_at": "2026-10-09T05:58:13.313Z"
   }
 ]
